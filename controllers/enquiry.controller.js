@@ -1,53 +1,73 @@
-// controllers/enquiry.controller.js
 import Enquiry from "../models/enquiry.model.js";
 import nodemailer from "nodemailer";
 
-// ---- Nodemailer Transport (Render Safe) ----
+// Nodemailer Transport
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST, // smtp.gmail.com
-    port: Number(process.env.EMAIL_PORT), // 587
-    secure: false, // MUST be false for 587
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT),
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // APP PASSWORD
+      pass: process.env.EMAIL_PASS,
     },
   });
 };
 
-// ---- Create Enquiry ----
+// Create Enquiry
 export const createEnquiry = async (req, res) => {
   try {
-    const { companyName, emailid, message, phone } = req.body;
+    // debug incoming payload
+    console.debug('Enquiry payload received:', req.body);
 
-    // 1️⃣ Save enquiry to DB
-    const newEnquiry = await Enquiry.create({
+    const {
+      firstName,
+      lastName,
       companyName,
       emailid,
-      message,
       phone,
+      companySize,
+      enquiryType,
+      message,
+    } = req.body;
+
+    // Save enquiry
+    const newEnquiry = await Enquiry.create({
+      firstName,
+      lastName,
+      companyName,
+      emailid,
+      phone,
+      companySize,
+      enquiryType,
+      message,
     });
 
-    // 2️⃣ Respond immediately (VERY IMPORTANT)
+    // Send response immediately
     res.status(201).json({
       status: "success",
       message: "Enquiry submitted successfully.",
       data: newEnquiry,
     });
 
-    // 3️⃣ Send email in background (NON-BLOCKING)
+    // Send Email in background
     const transporter = createTransporter();
 
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER, // admin email
+      to: process.env.EMAIL_USER,
       subject: "New Enquiry Received",
       html: `
-        <h3>You have a new enquiry!</h3>
-        <p><strong>Company Name:</strong> ${companyName}</p>
-        <p><strong>Email ID:</strong> ${emailid}</p>
+        <h3>New Enquiry Received</h3>
+
+        <p><strong>First Name:</strong> ${firstName}</p>
+        <p><strong>Last Name:</strong> ${lastName || "N/A"}</p>
+        <p><strong>Company:</strong> ${companyName}</p>
+        <p><strong>Email:</strong> ${emailid}</p>
         <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Message:</strong> ${message}</p>
+        <p><strong>Company Size:</strong> ${companySize}</p>
+        <p><strong>Enquiry Type:</strong> ${enquiryType}</p>
+        <p><strong>Message:</strong> ${message || "N/A"}</p>
       `,
     };
 
@@ -68,7 +88,7 @@ export const createEnquiry = async (req, res) => {
   }
 };
 
-// ---- Get All Enquiries (Admin) ----
+// Get All Enquiries (Admin)
 export const getAllEnquiries = async (req, res) => {
   try {
     const enquiries = await Enquiry.find().sort({ createdAt: -1 });
@@ -76,12 +96,12 @@ export const getAllEnquiries = async (req, res) => {
     res.status(200).json({
       status: "success",
       results: enquiries.length,
-      data: enquiries
+      data: enquiries,
     });
   } catch (err) {
     res.status(400).json({
       status: "fail",
-      message: err.message
+      message: err.message,
     });
   }
 };
